@@ -1,0 +1,13 @@
+name: platereaderR
+title: platereaderR
+username:
+account: novotny
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 8548204
+bundleId: 6949590
+url: https://novotny.shinyapps.io/platereaderR/
+when: 1678663470.39597
+lastSyncTime: 1678663470.39598
+asMultiple: FALSE
+asStatic: FALSE

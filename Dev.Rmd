@@ -1,0 +1,88 @@
+---
+title: "R Notebook"
+---
+
+```{r}
+library(readxl)
+library(tidyverse)
+'%!in%' <- function(x,y)!('%in%'(x,y))
+```
+
+
+
+Read in Plate dataset as 
+```{r}
+RawValues <- 
+  read_excel("./Data/March2023.xlsx", sheet = "Plate1") %>%
+  rename(Row = 1) %>% 
+  pivot_longer(2:13, names_to = "Column", values_to = "Fluorescence")
+
+RawValues
+```
+
+
+Define added values
+```{r}
+Standards <- c(10, 8, 6, 4, 2, 1, 0.5, 0)
+VolumeC1 <- 10
+VolumeC2 <- 5
+VolumeSample <- 2
+```
+
+
+Plot Standard curve and coefficients:
+```{r}
+AddedMass <- tibble(
+  Column = as.character(c(rep(1, 8), rep(2, 8))),
+  Row = rep(c("A", "B", "C", "D", "E", "F", "G", "H"),2),
+  Mass = c(Standards*VolumeC1, Standards*VolumeC2)
+)
+AddedMass
+
+StandardCurve <-
+  RawValues %>% 
+  filter(Column %in% c("1","2")) %>% 
+  left_join(AddedMass, by = c("Column", "Row"))
+
+mod <-lm(Mass ~ Fluorescence, data = StandardCurve)
+summary(mod)
+anova(mod)
+intercept <- mod$coefficients[1]
+slope <- mod$coefficients[2]
+R2 <- summary(mod)$r.squared
+
+StandardCurve %>% 
+  ggplot(aes(Fluorescence, Mass)) +
+  geom_point() +
+  geom_abline(slope = slope, intercept = intercept)+
+  geom_text(x=50000, y=75, label = paste(
+    "Intercept = ", intercept, "\n",
+    "Slope = ", slope, "\n",
+    "R-square = ", R2
+  ))
+```
+
+Calculate sample concentrations based on standard curve:
+
+```{r}
+SampleConc <- RawValues %>%
+  filter(Column %!in% c("1", "2")) %>% 
+  mutate(`Mass (ng)` = slope*Fluorescence-intercept,
+         `Concentration (ng/ul)` = `Mass (ng)` / VolumeSample) %>% 
+  arrange(as.integer(Column), Row) %>% 
+  select(Column, Row, `Concentration (ng/ul)`)
+
+SampleConcMat <-   
+  SampleConc %>% 
+  pivot_wider(names_from = Column, values_from = `Concentration (ng/ul)`)
+
+SampleConcVolumes <-
+  SampleConc %>% 
+  mutate(`Volume for 10ng (ul)` = 10/`Concentration (ng/ul)`,
+         `Volume for 60ng (ul)` = 60/`Concentration (ng/ul)`,
+         `Volume for 80ng (ul)` = 80/`Concentration (ng/ul)`)
+
+
+SampleConcVolumes
+```
+

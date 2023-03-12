@@ -1,0 +1,205 @@
+---
+title: "plateReader"
+output:
+  flexdashboard::flex_dashboard:
+    source_code: embed
+runtime: shiny
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r}
+library(tidyverse)
+library(plotly)
+'%!in%' <- function(x,y)!('%in%'(x,y))
+```
+
+Sidebar {.sidebar}
+=========================================
+
+```{r}
+Standards <- c("QuantIT HS (10, 8, 6, 4, 2, 1, 0.5, 0 ng/ul)")
+radioButtons("Standards", "What DNA standards were used?", Standards)
+
+VolumeC1 <- c("10 ul")
+selectizeInput("VolumeC1", "Volume of standard added to Column 1", "10 ul")
+
+VolumeC2 <- c("5 ul")
+selectizeInput("VolumeC2", "Volume of standard added to Column 2", "5 ul")
+
+VolumeSample <- c("2 ul")
+selectizeInput("VolumeC2", "Volume of sample added to Column 3-12", "2 ul")
+
+textInput("exclude", "Select standards to exclude based on Well ID",
+          "Not currently supported")
+```
+
+
+**Andreas Novotny 2023-03-12**
+
+Please contribute to this [GitHub](github.com/andreasnovotny/plateReader) project
+
+# Data Input
+
+### Upload Plate file:
+
+*The format should e a csv file. Include rownames A-H and column names
+1-12.*
+
+```{r}
+fileInput("file1", "Choose CSV File",
+          multiple = TRUE,
+          accept = c("text/csv",
+                     "text/comma-separated-values,text/plain",
+                     ".csv")
+)
+```
+
+```{r}
+values <- reactiveValues(df_data = NULL)
+
+observeEvent(input$file1, {
+  values$raw_input <- read.csv(input$file1$datapath) %>% 
+    rename(Row = 1)
+})
+
+renderTable(values$raw_input)
+```
+
+### Example file:
+
+Follow this example when formating your plate file:
+
+![](images/Screenshot%202023-03-12%20at%203.53.53%20PM.png)
+
+# Standard Curve Calculation
+
+
+
+```{r}
+
+
+Standards <- c(10, 8, 6, 4, 2, 1, 0.5, 0)
+VolumeC1 <- 10
+VolumeC2 <- 5
+VolumeSample <- 2
+
+AddedMass <- tibble(
+  Column = as.character(c(rep("X1", 8), rep("X2", 8))),
+  Row = rep(c("A", "B", "C", "D", "E", "F", "G", "H"),2),
+  Mass = c(Standards*VolumeC1, Standards*VolumeC2)
+)
+
+# Merge standard curve
+reactive({
+  values$StandardCurve <- values$raw_input %>% 
+    pivot_longer(2:13, names_to = "Column", values_to = "Fluorescence") %>% 
+    filter(Column %in% c("X1","X2")) %>%
+    left_join(AddedMass, by = c("Column", "Row")) %>% 
+    mutate(Well = paste(Row, Column, sep = "")) %>% 
+    select(Well, Fluorescence, Mass) %>% 
+    filter(Well %!in% input$exclude)
+})
+
+
+# Model coefficients
+observeEvent(values$StandardCurve, {
+  mod <-lm(Mass ~ Fluorescence, data = values$StandardCurve)
+  values$intercept <- mod$coefficients[1]
+  values$slope <- mod$coefficients[2]
+  values$R2 <- summary(mod)$r.squared
+})
+```
+
+## Row {data-height="650"}
+
+### Standards
+
+```{r}
+renderTable({
+  values$StandardCurve %>% 
+    mutate(`DNA added to reaction (ng)` = Mass) %>% 
+    select(Well, Fluorescence, `DNA added to reaction (ng)`)
+})
+```
+
+## Row {data-height="350"}
+
+### Linear model (lm) standard curve
+
+```{r}
+
+renderPlot({
+  
+  values$StandardCurve %>% 
+  ggplot(aes(Fluorescence, Mass)) +
+  geom_point() +
+  geom_abline(slope = values$slope, intercept = values$intercept)+
+  geom_text(x=50000, y=75, label = paste(
+    "Intercept = ", values$intercept, "\n",
+    "Slope = ", values$slope, "\n",
+    "R-square = ", values$R2
+  ))
+  
+})
+
+
+```
+
+
+```{r}
+
+## Calculate Output
+reactive({
+  values$data_out <- values$raw_input %>%
+    pivot_longer(2:13, names_to = "Column", values_to = "Fluorescence") %>%
+    filter(Column %!in% c("X1", "X2")) %>%
+    mutate(`Mass (ng)`= values$slope*Fluorescence-values$intercept,
+           `Concentration (ng/ul)`=`Mass (ng)`/ VolumeSample) %>%
+    arrange(as.integer(Column), Row) %>%
+    select(Column, Row,`Concentration (ng/ul)`) %>%
+    mutate(`Volume for 10ng (ul)`= 10/`Concentration (ng/ul)`,
+           `Volume for 60ng (ul)`= 60/`Concentration (ng/ul)`,
+           `Volume for 80ng (ul)`= 80/`Concentration (ng/ul)`) })
+```
+
+# Data output
+
+### Sample Concentration (ng/ul)
+
+```{r}
+renderTable({
+  values$raw_input %>% 
+    pivot_longer(2:13, names_to = "Column", values_to = "Fluorescence") %>%
+    filter(Column %!in% c("X1", "X2")) %>%
+    mutate(`Mass (ng)` = values$slope*Fluorescence-values$intercept,
+         `Concentration (ng/ul)` = `Mass (ng)` / VolumeSample) %>% 
+    arrange(as.integer(Column), Row) %>% 
+    select(Column, Row, `Concentration (ng/ul)`) %>% 
+    pivot_wider(names_from = Column, values_from = `Concentration (ng/ul)`)
+})
+```
+
+### Download Dataframe
+
+```{r}
+
+
+
+splitLayout(cellWidths = c("30%", "70%"), wellPanel(
+  downloadButton("downloadData") ))
+
+output$downloadData <- downloadHandler( filename =
+"PlateConcentration.csv" , content = function(file) {
+
+      write.csv(values$data_out, file=file)
+    },
+
+contentType="text/csv" )
+
+output$OrigData <- renderDataTable(values$data_out)
+
+renderTable({ values$data_out })
+
+```
