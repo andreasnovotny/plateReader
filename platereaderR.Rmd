@@ -60,7 +60,7 @@ fileInput("file1", "Choose CSV File",
 values <- reactiveValues(df_data = NULL)
 
 observeEvent(input$file1, {
-  values$raw_input <- read.csv(input$file1$datapath) %>% 
+  values$raw_input <- read_csv(input$file1$datapath) %>% 
     rename(Row = 1)
 })
 
@@ -86,7 +86,7 @@ VolumeC2 <- 5
 VolumeSample <- 2
 
 AddedMass <- tibble(
-  Column = as.character(c(rep("X1", 8), rep("X2", 8))),
+  Column = as.character(c(rep("1", 8), rep("2", 8))),
   Row = rep(c("A", "B", "C", "D", "E", "F", "G", "H"),2),
   Mass = c(Standards*VolumeC1, Standards*VolumeC2)
 )
@@ -95,7 +95,7 @@ AddedMass <- tibble(
 reactive({
   values$StandardCurve <- values$raw_input %>% 
     pivot_longer(2:13, names_to = "Column", values_to = "Fluorescence") %>% 
-    filter(Column %in% c("X1","X2")) %>%
+    filter(Column %in% c("1","2")) %>%
     left_join(AddedMass, by = c("Column", "Row")) %>% 
     mutate(Well = paste(Row, Column, sep = "")) %>% 
     select(Well, Fluorescence, Mass) %>% 
@@ -154,14 +154,16 @@ renderPlot({
 reactive({
   values$data_out <- values$raw_input %>%
     pivot_longer(2:13, names_to = "Column", values_to = "Fluorescence") %>%
-    filter(Column %!in% c("X1", "X2")) %>%
+    filter(Column %!in% c("1", "2")) %>%
     mutate(`Mass (ng)`= values$slope*Fluorescence+values$intercept,
            `Concentration (ng/ul)`=`Mass (ng)`/ VolumeSample) %>%
     arrange(as.integer(Column), Row) %>%
     select(Column, Row,`Concentration (ng/ul)`) %>%
     mutate(`Volume for 10ng (ul)`= 10/`Concentration (ng/ul)`,
            `Volume for 60ng (ul)`= 60/`Concentration (ng/ul)`,
-           `Volume for 80ng (ul)`= 80/`Concentration (ng/ul)`) })
+           `Volume for 80ng (ul)`= 80/`Concentration (ng/ul)`)
+  
+  })
 ```
 
 # Data output
@@ -172,7 +174,7 @@ reactive({
 renderTable({
   values$raw_input %>% 
     pivot_longer(2:13, names_to = "Column", values_to = "Fluorescence") %>%
-    filter(Column %!in% c("X1", "X2")) %>%
+    filter(Column %!in% c("1", "2")) %>%
     mutate(`Mass (ng)` = values$slope*Fluorescence+values$intercept,
          `Concentration (ng/ul)` = `Mass (ng)` / VolumeSample) %>% 
     arrange(as.integer(Column), Row) %>% 
