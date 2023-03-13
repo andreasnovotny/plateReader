@@ -38,7 +38,7 @@ textInput("exclude", "Select standards to exclude based on Well ID",
 
 **Andreas Novotny 2023-03-12**
 
-Please contribute to this [GitHub](github.com/andreasnovotny/plateReader) project
+Please contribute to this [GitHub](https://github.com/andreasnovotny/plateReader) project
 
 # Data Input
 
@@ -155,7 +155,7 @@ reactive({
   values$data_out <- values$raw_input %>%
     pivot_longer(2:13, names_to = "Column", values_to = "Fluorescence") %>%
     filter(Column %!in% c("X1", "X2")) %>%
-    mutate(`Mass (ng)`= values$slope*Fluorescence-values$intercept,
+    mutate(`Mass (ng)`= values$slope*Fluorescence+values$intercept,
            `Concentration (ng/ul)`=`Mass (ng)`/ VolumeSample) %>%
     arrange(as.integer(Column), Row) %>%
     select(Column, Row,`Concentration (ng/ul)`) %>%
@@ -173,7 +173,7 @@ renderTable({
   values$raw_input %>% 
     pivot_longer(2:13, names_to = "Column", values_to = "Fluorescence") %>%
     filter(Column %!in% c("X1", "X2")) %>%
-    mutate(`Mass (ng)` = values$slope*Fluorescence-values$intercept,
+    mutate(`Mass (ng)` = values$slope*Fluorescence+values$intercept,
          `Concentration (ng/ul)` = `Mass (ng)` / VolumeSample) %>% 
     arrange(as.integer(Column), Row) %>% 
     select(Column, Row, `Concentration (ng/ul)`) %>% 

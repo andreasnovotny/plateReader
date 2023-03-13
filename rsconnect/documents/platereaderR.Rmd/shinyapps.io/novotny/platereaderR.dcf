@@ -5,9 +5,9 @@ account: novotny
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 8548204
-bundleId: 6949590
+bundleId: 6949647
 url: https://novotny.shinyapps.io/platereaderR/
-when: 1678663470.39597
-lastSyncTime: 1678663470.39598
+when: 1678665287.83207
+lastSyncTime: 1678665287.83208
 asMultiple: FALSE
 asStatic: FALSE

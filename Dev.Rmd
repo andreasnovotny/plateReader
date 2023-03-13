@@ -8,9 +8,10 @@ library(tidyverse)
 '%!in%' <- function(x,y)!('%in%'(x,y))
 ```
 
+Read in Plate dataset as
 
+[GitHub](github.com/andreasnovotny/plateReader)
 
-Read in Plate dataset as 
 ```{r}
 RawValues <- 
   read_excel("./Data/March2023.xlsx", sheet = "Plate1") %>%
@@ -20,8 +21,8 @@ RawValues <-
 RawValues
 ```
 
-
 Define added values
+
 ```{r}
 Standards <- c(10, 8, 6, 4, 2, 1, 0.5, 0)
 VolumeC1 <- 10
@@ -29,15 +30,16 @@ VolumeC2 <- 5
 VolumeSample <- 2
 ```
 
-
 Plot Standard curve and coefficients:
+
 ```{r}
 AddedMass <- tibble(
   Column = as.character(c(rep(1, 8), rep(2, 8))),
   Row = rep(c("A", "B", "C", "D", "E", "F", "G", "H"),2),
   Mass = c(Standards*VolumeC1, Standards*VolumeC2)
 )
-AddedMass
+
+
 
 StandardCurve <-
   RawValues %>% 
@@ -45,8 +47,6 @@ StandardCurve <-
   left_join(AddedMass, by = c("Column", "Row"))
 
 mod <-lm(Mass ~ Fluorescence, data = StandardCurve)
-summary(mod)
-anova(mod)
 intercept <- mod$coefficients[1]
 slope <- mod$coefficients[2]
 R2 <- summary(mod)$r.squared
@@ -85,4 +85,3 @@ SampleConcVolumes <-
 
 SampleConcVolumes
 ```
-
